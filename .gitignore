@@ -1,0 +1,9 @@
+node_modules/
+examples/out/
+examples/*.js
+tmp/
+dist/
+.idea/
+.vscode/
+*.map
+*.d.ts
