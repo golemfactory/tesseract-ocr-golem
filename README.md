@@ -84,7 +84,6 @@ const writeTextToResultFile = (text?: string) => {
   try {
     // Power-on the OCR, get the resources on Golem Network
     // This will wait until the resources are found and the OCR is ready to use
-    // TODO: Throw when it won't be available in golem.timeout seconds
     await ocr.init();
 
     // Do your work
