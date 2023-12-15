@@ -124,7 +124,7 @@ Operating on the Golem Network requires
 
 The config object accepted by `TesseractOcrOnGolem` can be composed of 2 properties:
 
-- `ocr` which control the default parameters which will be passed to `tesseract` when running the OCR ([see docs](https://golemfactory.github.io/tesseract-ocr-golem/types/TesseractConfig.html))
+- `args` which control the default parameters which will be passed to `tesseract` when running the OCR ([see docs](https://golemfactory.github.io/tesseract-ocr-golem/interfaces/TesseractArgs.html))
 - `service` which control the deployment of the OCR instances on the Golem Network ([see docs](https://golemfactory.github.io/tesseract-ocr-golem/interfaces/GolemConfig.html))
 
 For details regarding specific config options, please refer to
