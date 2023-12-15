@@ -1,0 +1,80 @@
+name: Release Pipeline
+
+on:
+  push:
+    branches:
+      # Regular release channels
+      - master
+      - next
+      - beta
+      - alpha
+      # Support, hotfix branches like: 1.0.x or 1.x
+      - '([0-9]+)(\.([0-9]+))?\.x'
+
+  # Allows triggering the workflow manually
+  workflow_dispatch:
+
+# We're going to interact with GH from the pipelines, so we need to get some permissions
+permissions:
+  contents: read # for checkout
+
+jobs:
+  regular-checks:
+    name: Build and unit-test on supported platforms and NodeJS versions
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup NodeJS ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Perform regular checks
+        run: |
+          npm install
+          npm run format:check
+          npm run lint
+          npm run build
+
+  release:
+    name: Release to NPM and GitHub
+    needs: regular-checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to be able to publish a GitHub release
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
+      id-token: write # to enable use of OIDC for npm provenance
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v3
+        with:
+          # Semantic release requires this as bare minimum
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
+        run: npm audit signatures
+
+      - name: Build the SDK for release
+        run: npm run build
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release --dry-run

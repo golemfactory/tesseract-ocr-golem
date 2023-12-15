@@ -1,49 +1,69 @@
 {
-  "name": "@golem-sdk/tesseract-ocr",
+  "name": "tesseract-ocr-golem",
   "version": "1.0.0",
-  "description": "",
+  "description": "Tesseract OCR library that executes the OCR on the Golem Network scaling to thousands of CPUs",
+  "keywords": [
+    "tesseract",
+    "ocr",
+    "optical",
+    "character",
+    "recognition",
+    "golem",
+    "network",
+    "distributed",
+    "computing",
+    "internet",
+    "computer"
+  ],
   "private": true,
   "scripts": {
     "test": "jest",
-    "build": "tsc --build --clean",
+    "build": "tsc --build",
     "format": "prettier -w .",
     "format:check": "prettier -c .",
-    "example": "ts-node examples/usage.ts"
+    "example": "ts-node examples/usage.ts",
+    "lint": "eslint . && tsc --noEmit",
+    "docs": "typedoc --excludeExternals --excludeProtected --excludePrivate src/index.ts"
   },
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "dist",
     "README.md"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/golemfactory/golem-sdk-tesseract-ocr.git"
+    "url": "git+https://github.com/golemfactory/tesseract-ocr-golem.git"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "GolemFactory <contact@golem.network>",
+  "license": "LGPL-3.0",
   "bugs": {
-    "url": "https://github.com/golemfactory/golem-sdk-tesseract-ocr/issues"
+    "url": "https://github.com/golemfactory/tesseract-ocr-golem/issues"
   },
-  "homepage": "https://github.com/golemfactory/golem-sdk-tesseract-ocr#readme",
+  "homepage": "https://github.com/golemfactory/tesseract-ocr-golem#readme",
   "dependencies": {
-    "@golem-sdk/golem-js": "^2.0.0-beta.2",
-    "async-lock": "^1.4.0",
+    "@golem-sdk/golem-js": "2.0.0-beta.4",
     "debug": "^4.3.4",
-    "queue": "^7.0.0",
-    "wtfnode": "^0.9.1"
+    "generic-pool": "^3.9.0",
+    "typedoc": "^0.25.4"
   },
   "devDependencies": {
     "@commitlint/cli": "^18.4.3",
     "@commitlint/config-conventional": "^18.4.3",
-    "@types/async-lock": "^1.4.2",
     "@types/debug": "^4.1.12",
-    "@types/node": "^20.10.3",
-    "@types/wtfnode": "^0.7.3",
+    "@types/node": "^20.10.4",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
     "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
     "husky": "^8.0.3",
     "prettier": "^3.1.0",
-    "semantic-release": "^22.0.10",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.3.2"
+    "semantic-release": "^22.0.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
