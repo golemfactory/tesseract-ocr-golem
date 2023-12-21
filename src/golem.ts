@@ -226,7 +226,6 @@ export class Golem {
           // await this.marketService.end();
 
           this.paymentService.acceptPayments(agreement);
-          this.paymentService.acceptDebitNotes(agreement.id); // FIXME #sdk Why is this different from the line above?
 
           return Activity.create(agreement, this.api);
         },
