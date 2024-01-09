@@ -32,6 +32,13 @@ export interface GolemConfig {
     rentHours: number;
     /** What's the desired hourly rate spend in GLM/hour */
     priceGlmPerHour: number;
+
+    /**
+     * List of provider Golem Node IDs that should be considered
+     *
+     * If not provided, the list will be pulled from: https://provider-health.golem.network/v1/provider-whitelist
+     */
+    withProviders?: string[];
   };
 
   /**
@@ -297,6 +304,10 @@ export class Golem {
 
   private buildProposalFilter(): ProposalFilter {
     return (proposal) => {
+      if (!this.config.market.withProviders?.includes(proposal.provider.id)) {
+        return false;
+      }
+
       const { maxReplicas } = this.config.deploy;
 
       const budget = this.getBudgetEstimate();

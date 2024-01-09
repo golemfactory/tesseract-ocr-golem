@@ -35,15 +35,13 @@ export interface TesseractOcrOnGolemConfig {
 }
 
 export class TesseractOcrOnGolem {
-  private golem: Golem;
+  private golem?: Golem;
 
   private isInitialized = false;
 
   private readonly logger: debug.Debugger;
 
   constructor(private config: TesseractOcrOnGolemConfig) {
-    this.golem = new Golem(this.config.service);
-
     this.logger = debug("tesseract");
     //  this.workload = this.golem.createWorkload({ spec... });
   }
@@ -59,6 +57,14 @@ export class TesseractOcrOnGolem {
     this.logger("Initializing Tesseract On Golem");
 
     const { initTimeoutSec } = this.config.service;
+
+    const golemConfig = { ...this.config.service };
+
+    if (golemConfig.market.withProviders === undefined) {
+      golemConfig.market.withProviders = await this.fetchRecommendedProviders();
+    }
+
+    this.golem = new Golem(golemConfig);
 
     const timeout = () =>
       new Promise((_resolve, reject) => {
@@ -93,7 +99,7 @@ export class TesseractOcrOnGolem {
   async convertImageToText(sourcePath: string): Promise<string | undefined> {
     this.logger("Converting %s to text", sourcePath);
 
-    if (!this.isInitialized) {
+    if (!this.isInitialized || !this.golem) {
       throw new Error("The Tesseract On Golem is not initialized yet.");
     }
 
@@ -136,7 +142,7 @@ export class TesseractOcrOnGolem {
    */
   async shutdown() {
     this.logger("Destroying Tesseract On Golem");
-    await this.golem.stop();
+    await this.golem?.stop();
     this.isInitialized = false;
     this.logger("Destroyed Tesseract On Golem");
   }
@@ -163,4 +169,61 @@ export class TesseractOcrOnGolem {
   //   // TODO: Implement  (golem->activity->costs)
   //   // return this.golem.getCostInfo();
   // }
+
+  /**
+   * Since the network can contain broken or failing providers, we make use of the public whitelist of validated
+   * providers to increase the chance for a successful conversion
+   */
+  private async fetchRecommendedProviders() {
+    this.logger("Downloading recommended provider list");
+
+    const FETCH_TIMEOUT_SEC = 30;
+    const FALLBACK_LIST: string[] = [];
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () =>
+          controller.abort(
+            "Didn't download the recommended provider list on time",
+          ),
+        FETCH_TIMEOUT_SEC * 1000,
+      );
+
+      const response: Response = await fetch(
+        "https://provider-health.golem.network/v1/provider-whitelist",
+        {
+          headers: {
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+        },
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        this.logger(
+          "The response from the recommended providers endpoint was not OK %o. Using fallback.",
+          response.body,
+        );
+        return FALLBACK_LIST;
+      }
+
+      const data: string[] = await response.json();
+
+      if (Array.isArray(data)) {
+        this.logger("Got the list of recommended providers %o", data);
+        return data;
+      } else {
+        this.logger("The response is not a valid array, will be ignored");
+        return FALLBACK_LIST;
+      }
+    } catch (err) {
+      this.logger(
+        "There was an issue while fetching the list of recommended providers",
+      );
+      return FALLBACK_LIST;
+    }
+  }
 }
