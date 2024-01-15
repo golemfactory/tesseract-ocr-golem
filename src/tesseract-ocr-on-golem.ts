@@ -1,5 +1,10 @@
 import path from "path";
-import { Golem, GolemConfig } from "./golem";
+import {
+  Golem,
+  GolemApiConfig,
+  GolemMarketConfig,
+  ServiceDeploymentConfig,
+} from "./golem";
 import * as fs from "fs";
 import debug from "debug";
 
@@ -20,13 +25,21 @@ export interface TesseractArgs {
   oem?: number;
 }
 
+type MakeOptional<T, P extends keyof T> = Omit<T, P> & Partial<Pick<T, P>>;
+
 export interface TesseractOcrOnGolemConfig {
   /**
    * Configuration options to use when getting compute resources from the Golem Network
    *
    * This configuration is concerned only with the settings which are relevant in the Tesseract OCR use-case
    */
-  service: GolemConfig;
+  service: {
+    api?: GolemApiConfig;
+    market: MakeOptional<GolemMarketConfig, "paymentNetwork">;
+    deploy: ServiceDeploymentConfig;
+    initTimeoutSec: number;
+    requestStartTimeoutSec: number;
+  };
 
   /**
    * Tesseract OCR specific arguments that the user might want to use in order to tweak the performance or outcomes
@@ -43,7 +56,6 @@ export class TesseractOcrOnGolem {
 
   constructor(private config: TesseractOcrOnGolemConfig) {
     this.logger = debug("tesseract");
-    //  this.workload = this.golem.createWorkload({ spec... });
   }
 
   /**
@@ -58,13 +70,44 @@ export class TesseractOcrOnGolem {
 
     const { initTimeoutSec } = this.config.service;
 
-    const golemConfig = { ...this.config.service };
+    const apiKey = process.env["GOLEM_API_KEY"];
 
-    if (golemConfig.market.withProviders === undefined) {
-      golemConfig.market.withProviders = await this.fetchRecommendedProviders();
+    if (apiKey === undefined) {
+      throw new Error(
+        "You didn't specify the Golem API key in the config object or GOLEM_API_KEY environment setting",
+      );
     }
 
-    this.golem = new Golem(golemConfig);
+    const API_DEFAULTS: Pick<GolemApiConfig, "key" | "url"> = {
+      key: apiKey,
+      url: process.env["GOLEM_API_URL"] ?? "http://localhost:7465",
+    };
+
+    const MARKET_DEFAULTS: Pick<GolemMarketConfig, "paymentNetwork"> = {
+      paymentNetwork: process.env["GOLEM_PAYMENT_NETWORK"] ?? "goerli",
+    };
+
+    const marketConfig: GolemMarketConfig = {
+      ...MARKET_DEFAULTS,
+      ...this.config.service.market,
+    };
+
+    if (marketConfig.withProviders === undefined) {
+      marketConfig.withProviders = await this.fetchRecommendedProviders(
+        marketConfig.paymentNetwork,
+      );
+    }
+
+    this.golem = new Golem({
+      api: {
+        ...API_DEFAULTS,
+        ...this.config.service.api,
+      },
+      initTimeoutSec: this.config.service.initTimeoutSec,
+      requestStartTimeoutSec: this.config.service.requestStartTimeoutSec,
+      deploy: this.config.service.deploy,
+      market: marketConfig,
+    });
 
     const timeout = () =>
       new Promise((_resolve, reject) => {
@@ -132,6 +175,13 @@ export class TesseractOcrOnGolem {
     });
   }
 
+  async abort() {
+    this.logger("Aborting Tesseract On Golem");
+    await this.golem?.abort();
+    this.isInitialized = false;
+    this.logger("Aborted Tesseract On Golem");
+  }
+
   /**
    * Stops the Tesseract service gracefully by shutting down the Golem
    *
@@ -174,8 +224,11 @@ export class TesseractOcrOnGolem {
    * Since the network can contain broken or failing providers, we make use of the public whitelist of validated
    * providers to increase the chance for a successful conversion
    */
-  private async fetchRecommendedProviders() {
-    this.logger("Downloading recommended provider list");
+  private async fetchRecommendedProviders(paymentNetwork: string) {
+    this.logger(
+      "Downloading recommended provider list for payment network %s",
+      paymentNetwork,
+    );
 
     const FETCH_TIMEOUT_SEC = 30;
     const FALLBACK_LIST: string[] = [];
@@ -191,7 +244,7 @@ export class TesseractOcrOnGolem {
       );
 
       const response: Response = await fetch(
-        "https://provider-health.golem.network/v1/provider-whitelist",
+        `https://provider-health.golem.network/v1/provider-whitelist?paymentNetwork=${paymentNetwork}`,
         {
           headers: {
             Accept: "application/json",
@@ -207,6 +260,7 @@ export class TesseractOcrOnGolem {
           "The response from the recommended providers endpoint was not OK %o. Using fallback.",
           response.body,
         );
+
         return FALLBACK_LIST;
       }
 

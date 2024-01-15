@@ -40,7 +40,6 @@ const writeTextToResultFile = (text?: string) => {
     if (alreadyShuttingDown) {
       console.error("The process is already shutting down, will force quit");
       process.exit(1);
-      return;
     } else {
       console.log(
         "Shutdown initiated, please wait for everything to finish, or hit ^C again to force exit",
@@ -49,7 +48,7 @@ const writeTextToResultFile = (text?: string) => {
 
     alreadyShuttingDown = true;
 
-    await ocr.shutdown();
+    await ocr.abort();
   };
 
   process.on("SIGINT", stop);
