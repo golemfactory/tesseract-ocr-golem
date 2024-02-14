@@ -12,7 +12,6 @@ import {
   Worker,
   Yagna,
 } from "@golem-sdk/golem-js";
-import { createLogger } from "./logging";
 
 // TODO: All the things dragged from `dist` should be exported from the main definition file
 import { YagnaApi } from "@golem-sdk/golem-js/dist/utils";
@@ -137,13 +136,10 @@ export class Golem {
 
     this.api = this.yagna.getApi();
 
-    this.agreementService = new AgreementPoolService(this.api, {
-      logger: createLogger("golem-js:agreement"),
-    });
+    this.agreementService = new AgreementPoolService(this.api);
 
     this.marketService = new MarketService(this.agreementService, this.api, {
       expirationSec: this.getExpectedDurationSeconds(),
-      logger: createLogger("golem-js:market"),
       proposalFilter: this.buildProposalFilter(),
     });
 
@@ -151,7 +147,6 @@ export class Golem {
     // TODO: In general, all the situations where we share too much from the constructor like in case of that allocation
     //  should be removed in 1.0
     this.paymentService = new PaymentService(this.api, {
-      logger: createLogger("golem-js:payment"),
       payment: {
         network: this.config.market.paymentNetwork,
       },
@@ -166,7 +161,7 @@ export class Golem {
   async start() {
     const allocation = await this.paymentService.createAllocation({
       budget: this.getBudgetEstimate(),
-      expires: this.getExpectedDurationSeconds() * 1000,
+      expirationSec: this.getExpectedDurationSeconds(),
     });
 
     // TODO: WORKLOAD!
@@ -176,7 +171,6 @@ export class Golem {
       minCpuCores: this.config.deploy.resources.minCpu,
       minCpuThreads: this.config.deploy.resources.minCpu,
       minStorageGib: this.config.deploy.resources.minStorageGib,
-      logger: createLogger("golem-js:package"),
     });
 
     await Promise.all([
