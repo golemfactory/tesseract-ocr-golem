@@ -287,14 +287,22 @@ export class Golem {
           //  Or did the terminate fail and the SDK does not send that?
         },
         validate: async (activity: Activity) => {
-          const state = await activity.getState();
-          const result = state !== ActivityStateEnum.Terminated;
-          this.logger(
-            "Validating activity in the pool, result: %s, state: %s",
-            result,
-            state,
-          );
-          return result;
+          try {
+            const state = await activity.getState();
+            const result = state !== ActivityStateEnum.Terminated;
+            this.logger(
+              "Validating activity in the pool, result: %s, state: %s",
+              result,
+              state,
+            );
+            return result;
+          } catch (err) {
+            this.logger(
+              "Checking activity status failed. The activity will be removed from the pool. Error: %o",
+              err,
+            );
+            return false;
+          }
         },
       },
       {
