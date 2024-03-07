@@ -216,6 +216,10 @@ export class Golem {
 
         const ctx = new WorkContext(activity, {
           storageProvider: this.storageProvider,
+          yagnaOptions: {
+            apiKey: this.config.api.key,
+            basePath: this.config.api.url,
+          },
         });
 
         ctx
