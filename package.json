@@ -62,7 +62,7 @@
     "semantic-release": "^23.0.2",
     "tsx": "^4.7.1",
     "typedoc": "^0.25.11",
-    "typescript": "^5.4.2"
+    "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=18"
