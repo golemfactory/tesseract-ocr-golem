@@ -1,23 +1,11 @@
 import {
-  Activity,
-  ActivityStateEnum,
-  AgreementPoolService,
-  GftpStorageProvider,
-  MarketService,
-  Package,
-  PaymentService,
+  ExeUnit,
+  GolemNetwork,
   ProposalFilter,
-  StorageProvider,
-  WorkContext,
-  Worker,
-  Yagna,
+  ResourceRentalPool,
 } from "@golem-sdk/golem-js";
 
 // TODO: All the things dragged from `dist` should be exported from the main definition file
-import { YagnaApi } from "@golem-sdk/golem-js/dist/utils";
-import { Proposal } from "@golem-sdk/golem-js/dist/market";
-
-import genericPool from "generic-pool";
 import debug, { Debugger } from "debug";
 
 export type GolemMarketConfig = {
@@ -107,15 +95,7 @@ export interface GolemConfig {
 }
 
 export class Golem {
-  private readonly yagna: Yagna;
-  private readonly api: YagnaApi;
-
-  private readonly agreementService: AgreementPoolService;
-  private readonly marketService: MarketService;
-  private readonly paymentService: PaymentService;
-  private readonly storageProvider: StorageProvider;
-
-  private activityPool: genericPool.Pool<Activity>;
+  private resourcePool?: ResourceRentalPool;
 
   private readonly logger: Debugger;
 
@@ -123,74 +103,66 @@ export class Golem {
 
   private abortController = new AbortController();
 
+  private readonly glm: GolemNetwork;
+
   constructor(config: GolemConfig) {
     this.logger = debug("golem");
 
     this.config = config;
 
-    // FIXME: This internally allocates resources like connections, which also have to be cleaned up
-    this.yagna = new Yagna({
-      apiKey: this.config.api.key,
-      basePath: this.config.api.url,
-    });
-
-    this.api = this.yagna.getApi();
-
-    this.agreementService = new AgreementPoolService(this.api);
-
-    this.marketService = new MarketService(this.agreementService, this.api, {
-      expirationSec: this.getExpectedDurationSeconds(),
-      proposalFilter: this.buildProposalFilter(),
-    });
-
-    // TODO: The amount to allocate should not be set in the constructor :(
-    // TODO: In general, all the situations where we share too much from the constructor like in case of that allocation
-    //  should be removed in 1.0
-    this.paymentService = new PaymentService(this.api, {
+    this.glm = new GolemNetwork({
+      api: {
+        key: this.config.api.key,
+        url: this.config.api.url,
+      },
       payment: {
         network: this.config.market.paymentNetwork,
       },
     });
-
-    // FIXME: This internally allocates resources like child processes
-    this.storageProvider = new GftpStorageProvider();
-
-    this.activityPool = this.buildActivityPool();
   }
 
   async start() {
-    const allocation = await this.paymentService.createAllocation({
-      budget: this.getBudgetEstimate(),
-      expirationSec: this.getExpectedDurationSeconds(),
+    await this.glm.connect();
+
+    this.resourcePool = await this.glm.manyOf({
+      concurrency: {
+        min: 1,
+        max: this.config.deploy.maxReplicas,
+      },
+      order: {
+        market: {
+          rentHours: this.config.market.rentHours,
+          pricing: {
+            model: "burn-rate",
+            avgGlmPerHour: this.config.market.priceGlmPerHour,
+          },
+          proposalFilter: this.buildProposalFilter(),
+        },
+        demand: {
+          workload: {
+            imageTag: "golem/tesseract:latest",
+            minMemGib: this.config.deploy.resources.minMemGib ?? 0.5,
+            minCpuCores: this.config.deploy.resources.minCpu ?? 1,
+            minCpuThreads: this.config.deploy.resources.minCpu ?? 1,
+            minStorageGib: this.config.deploy.resources.minStorageGib ?? 0.5,
+          },
+          // TODO: Check if that's needed
+          expirationSec: this.getExpectedDurationSeconds(),
+        },
+      },
     });
 
-    // TODO: WORKLOAD!
-    const workload = Package.create({
-      imageTag: "golem/tesseract:latest",
-      minMemGib: this.config.deploy.resources.minMemGib,
-      minCpuCores: this.config.deploy.resources.minCpu,
-      minCpuThreads: this.config.deploy.resources.minCpu,
-      minStorageGib: this.config.deploy.resources.minStorageGib,
-    });
-
-    await Promise.all([
-      this.agreementService.run(),
-      // TODO: I should be able to start the service, but pass the workload and allocation later - market.postDemand(???)
-      // TODO: I should be able to specify the proposal filter here, and not on the constructor level
-      this.marketService.run(workload, allocation),
-      this.paymentService.run(),
-    ]);
+    await this.resourcePool.ready(this.config.initTimeoutSec);
   }
 
-  async sendTask<T>(task: Worker<T>): Promise<T | undefined> {
+  async runWork<T>(
+    task: (task: ExeUnit) => Promise<T | undefined>,
+  ): Promise<T | undefined> {
     if (this.abortController.signal.aborted) {
       throw new Error(
         `No new task will be accepted because of the abort signal being already raised.`,
       );
     }
-
-    const activity = await this.activityPool.acquire();
-    this.logger("Acquired activity %s to execute the task", activity.id);
 
     try {
       if (this.abortController.signal.aborted) {
@@ -199,7 +171,6 @@ export class Golem {
         );
       }
 
-      // FIXME #sdk, I would like to have an ability to pass an abort controller signal to the SDK to handle it...
       return await new Promise((resolve, reject) => {
         if (this.abortController.signal.aborted) {
           reject(
@@ -214,26 +185,22 @@ export class Golem {
           );
         };
 
-        const ctx = new WorkContext(activity, {
-          storageProvider: this.storageProvider,
-          yagnaOptions: {
-            apiKey: this.config.api.key,
-            basePath: this.config.api.url,
-          },
-        });
-
-        ctx
-          .before()
-          .then(() => task(ctx))
-          .then((result) => resolve(result))
-          .catch((err) => reject(err));
+        if (this.resourcePool) {
+          this.resourcePool
+            .withRental((rental) => rental.getExeUnit().then(task))
+            .then((result: T | undefined) => resolve(result))
+            .catch((err: unknown) => reject(err));
+        } else {
+          reject(
+            new Error(
+              "The integration with Golem is not fully initialized, missing rental pool",
+            ),
+          );
+        }
       });
     } catch (err) {
       console.error(err, "Running the task on Golem failed with this error");
       throw err;
-    } finally {
-      await this.activityPool.release(activity);
-      this.logger("Released activity %s", activity.id);
     }
   }
 
@@ -244,79 +211,13 @@ export class Golem {
   }
 
   async stop() {
-    this.logger("Waiting for the activity pool to drain");
-    await this.activityPool.drain();
-    this.logger("Activity pool drained");
+    this.logger("Closing up all rentals with Golem Network");
+    this.resourcePool?.drainAndClear();
+    this.logger("All rentals from Golem Network closed");
 
-    // FIXME: This component should really make sure that we accept all invoices and don't wait for payment
-    //   as that's a different process executed by the payment driver. Accepted means work is done.
-    this.logger("Stopping core services");
-    await this.marketService.end();
-
-    // Order of below is important
-    await this.agreementService.end();
-    await this.paymentService.end();
-    this.logger("Stopping core services finished");
-
-    // Cleanup resource allocations which are not inherently visible in the constructor
-    this.logger("Cleaning up remaining resources");
-    await this.storageProvider.close();
-    await this.yagna.end();
-    this.logger("Resources cleaned");
-  }
-
-  private buildActivityPool() {
-    return genericPool.createPool<Activity>(
-      {
-        create: async (): Promise<Activity> => {
-          this.logger("Creating new activity to add to pool");
-          const agreement = await this.agreementService.getAgreement();
-          // await this.marketService.end();
-
-          this.paymentService.acceptPayments(agreement);
-
-          return Activity.create(agreement, this.api);
-        },
-        destroy: async (activity: Activity) => {
-          this.logger("Destroying activity from the pool");
-          await activity.stop();
-
-          // FIXME #sdk Use Agreement and not string
-          await this.agreementService.releaseAgreement(
-            activity.agreement.id,
-            false,
-          );
-
-          // FIXME #sdk stopPayments? stopAcceptDebitNotes? In the logs I see debit notes from past activities, which I terminated?
-          //  Or did the terminate fail and the SDK does not send that?
-        },
-        validate: async (activity: Activity) => {
-          try {
-            const state = await activity.getState();
-            const result = state !== ActivityStateEnum.Terminated;
-            this.logger(
-              "Validating activity in the pool, result: %s, state: %s",
-              result,
-              state,
-            );
-            return result;
-          } catch (err) {
-            this.logger(
-              "Checking activity status failed. The activity will be removed from the pool. Error: %o",
-              err,
-            );
-            return false;
-          }
-        },
-      },
-      {
-        testOnBorrow: true,
-        max: this.config.deploy.maxReplicas,
-        evictionRunIntervalMillis:
-          this.config.deploy.downscaleIntervalSec * 1000,
-        acquireTimeoutMillis: this.config.requestStartTimeoutSec * 1000,
-      },
-    );
+    this.logger("Stopping Golem integration");
+    await this.glm.disconnect();
+    this.logger("Golem integration stopped");
   }
 
   /**
@@ -339,18 +240,6 @@ export class Golem {
     return rentHours * priceGlmPerHour * (minCpu || 1) * maxReplicas;
   }
 
-  private estimateProposal(proposal: Proposal): number {
-    const budgetSeconds = this.getExpectedDurationSeconds();
-    // TODO #sdk Have a nice property access to this
-    const threadsNo = proposal.properties["golem.inf.cpu.threads"];
-
-    return (
-      proposal.pricing.start +
-      proposal.pricing.cpuSec * threadsNo * budgetSeconds +
-      proposal.pricing.envSec * budgetSeconds
-    );
-  }
-
   private buildProposalFilter(): ProposalFilter {
     return (proposal) => {
       if (
@@ -366,7 +255,7 @@ export class Golem {
       const budget = this.getBudgetEstimate();
       const budgetPerReplica = budget / maxReplicas;
 
-      const estimate = this.estimateProposal(proposal);
+      const estimate = proposal.getEstimatedCost();
 
       return estimate <= budgetPerReplica;
     };

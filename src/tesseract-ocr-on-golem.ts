@@ -153,22 +153,26 @@ export class TesseractOcrOnGolem {
     const fileName = path.basename(sourcePath);
 
     // The only bit which the user is concerned about when implementing the actual work on Golem
-    return this.golem.sendTask(async (activity) => {
+    return this.golem.runWork(async (exe) => {
       // Upload the file for processing
-      await activity.uploadFile(sourcePath, `/golem/work/${fileName}`);
+      await exe.uploadFile(sourcePath, `/golem/work/${fileName}`);
 
       // Run the processing
       const cmdLine = `tesseract /golem/work/${fileName} stdout ${this.getArgsFromConfig()}`;
-      this.logger("Executing command on provider %s", cmdLine);
+      this.logger(
+        "Executing command '%s' on provider '%s'",
+        cmdLine,
+        exe.provider.name,
+      );
 
-      const res = await activity.run(cmdLine);
+      const res = await exe.run(cmdLine);
       if (res.result !== "Ok") {
         this.logger("Received result that contains: %O", res);
         throw new Error("Failed to run the OCR on Golem");
       }
 
       // Remove the file to clean-up space
-      await activity.run(`rm /golem/work/${fileName}`);
+      await exe.run(`rm /golem/work/${fileName}`);
 
       // Return the resulting text
       return res.stdout?.toString();
@@ -244,7 +248,7 @@ export class TesseractOcrOnGolem {
       );
 
       const response: Response = await fetch(
-        `https://provider-health.golem.network/v1/provider-whitelist?paymentNetwork=${paymentNetwork}`,
+        `https://reputation.dev-test.golem.network/v1/provider-whitelist?paymentNetwork=${paymentNetwork}`,
         {
           headers: {
             Accept: "application/json",
@@ -267,7 +271,6 @@ export class TesseractOcrOnGolem {
       const data: string[] = await response.json();
 
       if (Array.isArray(data)) {
-        this.logger("Got the list of recommended providers %o", data);
         return data;
       } else {
         this.logger("The response is not a valid array, will be ignored");
