@@ -1,7 +1,7 @@
 import {
   ExeUnit,
   GolemNetwork,
-  ProposalFilter,
+  OfferProposalFilter,
   ResourceRentalPool,
 } from "@golem-sdk/golem-js";
 
@@ -125,7 +125,7 @@ export class Golem {
     await this.glm.connect();
 
     this.resourcePool = await this.glm.manyOf({
-      concurrency: {
+      poolSize: {
         min: 1,
         max: this.config.deploy.maxReplicas,
       },
@@ -136,7 +136,7 @@ export class Golem {
             model: "burn-rate",
             avgGlmPerHour: this.config.market.priceGlmPerHour,
           },
-          proposalFilter: this.buildProposalFilter(),
+          offerProposalFilter: this.buildProposalFilter(),
         },
         demand: {
           workload: {
@@ -146,13 +146,11 @@ export class Golem {
             minCpuThreads: this.config.deploy.resources.minCpu ?? 1,
             minStorageGib: this.config.deploy.resources.minStorageGib ?? 0.5,
           },
-          // TODO: Check if that's needed
-          expirationSec: this.getExpectedDurationSeconds(),
         },
       },
     });
 
-    await this.resourcePool.ready(this.config.initTimeoutSec);
+    await this.resourcePool.ready(this.config.initTimeoutSec * 1000);
   }
 
   async runWork<T>(
@@ -240,7 +238,7 @@ export class Golem {
     return rentHours * priceGlmPerHour * (minCpu || 1) * maxReplicas;
   }
 
-  private buildProposalFilter(): ProposalFilter {
+  private buildProposalFilter(): OfferProposalFilter {
     return (proposal) => {
       if (
         this.config.market.withProviders &&
