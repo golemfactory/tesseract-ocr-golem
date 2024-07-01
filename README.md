@@ -113,11 +113,11 @@ const writeTextToResultFile = (text?: string) => {
 
 Operating on the Golem Network requires
 
-| Env variable            | Required | Default value         | Description                                                                                                                                                      |
-| ----------------------- | -------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOLEM_API_KEY`         | yes      |                       | Yagna app-key used to identify your application                                                                                                                  |
-| `GOLEM_API_URL`         | no       | http://localhost:7465 | Where is your yagna instance located                                                                                                                             |
-| `GOLEM_PAYMENT_NETWORK` | no       | `goerli`              | On which network you want to get the compute resources. `polygon` is the main network, where the real GLM tokens are used. `goerli` is the default test network. |
+| Env variable            | Required | Default value         | Description                                                                                                                                                       |
+| ----------------------- | -------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOLEM_API_KEY`         | yes      |                       | Yagna app-key used to identify your application                                                                                                                   |
+| `GOLEM_API_URL`         | no       | http://localhost:7465 | Where is your yagna instance located                                                                                                                              |
+| `GOLEM_PAYMENT_NETWORK` | no       | `holesky`             | On which network you want to get the compute resources. `polygon` is the main network, where the real GLM tokens are used. `holesky` is the default test network. |
 
 ### The configuration object
 
