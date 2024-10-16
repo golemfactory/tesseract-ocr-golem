@@ -69,7 +69,8 @@ const writeTextToResultFile = (text?: string) => {
       deploy: {
         maxReplicas: 4,
         resources: {
-          minCpu: 1,
+          minCpuThreads: 2,
+          maxCpuThreads: 4,
         },
         downscaleIntervalSec: 60,
       },
