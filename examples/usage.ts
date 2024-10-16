@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { TesseractOcrOnGolem } from "../src/tesseract-ocr-on-golem";
+import { TesseractOcrOnGolem } from "../src";
 
 /**
  * Utility used to write down results
@@ -22,7 +22,8 @@ const writeTextToResultFile = (text?: string) => {
       deploy: {
         maxReplicas: 4,
         resources: {
-          minCpu: 1,
+          minCpuThreads: 2,
+          maxCpuThreads: 4,
         },
         downscaleIntervalSec: 60,
       },
