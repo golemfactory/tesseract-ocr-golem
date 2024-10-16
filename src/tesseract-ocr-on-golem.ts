@@ -68,8 +68,6 @@ export class TesseractOcrOnGolem {
   async init() {
     this.logger("Initializing Tesseract On Golem");
 
-    const { initTimeoutSec } = this.config.service;
-
     const apiKey = process.env["GOLEM_API_KEY"];
 
     if (apiKey === undefined) {
@@ -84,7 +82,7 @@ export class TesseractOcrOnGolem {
     };
 
     const MARKET_DEFAULTS: Pick<GolemMarketConfig, "paymentNetwork"> = {
-      paymentNetwork: process.env["GOLEM_PAYMENT_NETWORK"] ?? "goerli",
+      paymentNetwork: process.env["GOLEM_PAYMENT_NETWORK"] ?? "holesky",
     };
 
     const marketConfig: GolemMarketConfig = {
@@ -103,24 +101,12 @@ export class TesseractOcrOnGolem {
         ...API_DEFAULTS,
         ...this.config.service.api,
       },
-      initTimeoutSec: this.config.service.initTimeoutSec,
       requestStartTimeoutSec: this.config.service.requestStartTimeoutSec,
       deploy: this.config.service.deploy,
       market: marketConfig,
     });
 
-    const timeout = () =>
-      new Promise((_resolve, reject) => {
-        setTimeout(
-          () =>
-            reject(
-              `Tesseract On Golem could not start within configured time of ${initTimeoutSec} seconds`,
-            ),
-          initTimeoutSec * 1000,
-        );
-      });
-
-    await Promise.race([this.golem.start(), timeout()]);
+    await this.golem.start();
 
     this.isInitialized = true;
 

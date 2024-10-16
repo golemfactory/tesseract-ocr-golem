@@ -42,26 +42,29 @@
   },
   "homepage": "https://github.com/golemfactory/tesseract-ocr-golem#readme",
   "dependencies": {
-    "@golem-sdk/golem-js": "^3.0.0",
-    "debug": "^4.3.5"
+    "@golem-sdk/golem-js": "^3.4.1",
+    "debug": "^4.3.7",
+    "generic-pool": "^3.9.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.3.0",
-    "@commitlint/config-conventional": "^19.2.2",
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
     "@types/debug": "^4.1.12",
-    "@types/node": "^20.14.8",
-    "@typescript-eslint/eslint-plugin": "^7.13.1",
-    "@typescript-eslint/parser": "^7.13.1",
-    "eslint": "^8.57.0",
+    "@types/node": "^20.16.11",
+    "@types/wtfnode": "^0.7.3",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.1.3",
-    "husky": "^9.0.11",
-    "prettier": "^3.3.2",
-    "rimraf": "^5.0.7",
+    "eslint-plugin-prettier": "^5.2.1",
+    "husky": "^9.1.6",
+    "prettier": "^3.3.3",
+    "rimraf": "^6.0.1",
     "semantic-release": "^23.1.1",
-    "tsx": "^4.15.7",
-    "typedoc": "^0.25.13",
-    "typescript": "^5.4.5"
+    "tsx": "^4.19.1",
+    "typedoc": "^0.26.9",
+    "typescript": "^5.6.3",
+    "wtfnode": "^0.9.3"
   },
   "engines": {
     "node": ">=18"
