@@ -42,7 +42,7 @@
   },
   "homepage": "https://github.com/golemfactory/tesseract-ocr-golem#readme",
   "dependencies": {
-    "@golem-sdk/golem-js": "^3.4.1",
+    "@golem-sdk/golem-js": "^3.4.2",
     "debug": "^4.3.7",
     "generic-pool": "^3.9.0"
   },
@@ -50,7 +50,7 @@
     "@commitlint/cli": "^19.5.0",
     "@commitlint/config-conventional": "^19.5.0",
     "@types/debug": "^4.1.12",
-    "@types/node": "^20.16.11",
+    "@types/node": "^20.16.12",
     "@types/wtfnode": "^0.7.3",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",

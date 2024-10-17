@@ -315,22 +315,19 @@ export class Golem {
     dto: ProposalDTO,
     resources: ServiceDeploymentConfig["resources"],
   ) {
-    // FIXME: Remove after https://github.com/golemfactory/golem-js/pull/1111 is released
-    if (dto.cpuThreads) {
-      if (resources.minCpuThreads && resources.maxCpuThreads) {
-        return (
-          dto.cpuThreads >= resources.minCpuThreads &&
-          dto.cpuThreads <= resources.maxCpuThreads
-        );
-      }
+    if (resources.minCpuThreads && resources.maxCpuThreads) {
+      return (
+        dto.cpuThreads >= resources.minCpuThreads &&
+        dto.cpuThreads <= resources.maxCpuThreads
+      );
+    }
 
-      if (resources.maxCpuThreads) {
-        return dto.cpuThreads <= resources.maxCpuThreads;
-      }
+    if (resources.maxCpuThreads) {
+      return dto.cpuThreads <= resources.maxCpuThreads;
+    }
 
-      if (resources.minCpuThreads) {
-        return dto.cpuThreads >= resources.minCpuThreads;
-      }
+    if (resources.minCpuThreads) {
+      return dto.cpuThreads >= resources.minCpuThreads;
     }
   }
 
