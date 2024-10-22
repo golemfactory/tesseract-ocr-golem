@@ -234,7 +234,7 @@ export class TesseractOcrOnGolem {
       );
 
       const response: Response = await fetch(
-        `https://reputation.dev-test.golem.network/v1/provider-whitelist?paymentNetwork=${paymentNetwork}`,
+        `https://reputation.golem.network/v1/provider-whitelist?paymentNetwork=${paymentNetwork}`,
         {
           headers: {
             Accept: "application/json",
