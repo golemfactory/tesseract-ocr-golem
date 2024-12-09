@@ -42,8 +42,8 @@
   },
   "homepage": "https://github.com/golemfactory/tesseract-ocr-golem#readme",
   "dependencies": {
-    "@golem-sdk/golem-js": "^3.4.2",
-    "debug": "^4.3.7",
+    "@golem-sdk/golem-js": "^3.5.0",
+    "debug": "^4.4.0",
     "generic-pool": "^3.9.0"
   },
   "devDependencies": {
